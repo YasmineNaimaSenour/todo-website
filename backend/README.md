@@ -1,112 +1,208 @@
-# Backend Setup Guide
+# TODO Application Backend
 
-This guide explains how to set up and run the backend service, including database migrations.
+A RESTful API backend for a TODO application built with Node.js, Express, TypeScript, and PostgreSQL.
 
-## 📁 Project Structure
+## Features
 
-```
-backend/
-├── src/
-│   ├── controllers/
-│   │   ├── todo.controller.ts
-│   │   └── user.controller.ts
-│   ├── entities/
-│   │   ├── Todo.ts
-│   │   └── User.ts
-│   ├── interfaces/
-│   ├── middlewares/
-│   ├── migrations/
-│   │   └── 1745412919642-InitMigration.ts
-│   ├── routes/
-│   │   ├── todo.routes.ts
-│   │   └── user.routes.ts
-│   ├── services/
-│   ├── data-source.ts
-│   └── server.ts
-├── node_modules/
-├── package-lock.json
-├── package.json
-├── Dockerfile
-├── README.md
-└── tsconfig.json
-```
+- User authentication (register, login, logout)
+- TODO CRUD operations
+- JWT-based authentication
+- Input validation
+- Pagination
+- Error handling
+- TypeScript support
+- PostgreSQL database with TypeORM
 
-## 🐳 Running with Docker
+## Prerequisites
 
-1. Start the containers from the project root:
+- Node.js (v14 or higher)
+- Docker and Docker Compose
+- PostgreSQL (via Docker)
+
+## Setup
+
+### Manual Setup
+
+1. Install dependencies:
 ```bash
-sudo docker-compose up -d
+npm install
 ```
 
-2. Check if containers are running:
+2. Create a `.env` file.
+
+3. Start the development server:
 ```bash
-sudo docker ps
+npm run dev
 ```
-You should see both `todo-backend` and `todo-db` containers running.
 
-## 📝 Generating Migrations
+### Docker Setup
 
-To generate a new migration file that will create the necessary database tables:
-
+1. Build and start the containers:
 ```bash
-sudo docker exec -it todo-backend npm run migration:generate -- src/migrations/InitMigration
+docker-compose up -d --build
 ```
 
-This will:
-- Create a new migration file in `src/migrations/InitMigration.ts`
-- Generate SQL based on your entity definitions (User and Todo)
-
-## 🚀 Running Migrations
-
-After generating the migration, run it to create the tables:
-
+2. Stop the containers:
 ```bash
-sudo docker exec -it todo-backend npm run migration:run
+docker-compose down
 ```
 
-## 🔍 Viewing Migration Files
-
-To view the generated migration file:
-
+3. View logs:
 ```bash
-sudo docker exec -it todo-backend cat /app/src/migrations/InitMigration.ts
+docker-compose logs -f
 ```
 
-## 📊 Checking Database
+## API Documentation
 
-To verify the tables were created, you can connect to the database:
+### Authentication
 
-```bash
-sudo docker exec -it todo-db psql -U postgres -d todo-db
+#### Register
+- **URL**: `/api/users/register`
+- **Method**: `POST`
+- **Body**:
+```json
+{
+    "username": "string (3-20 chars, alphanumeric + underscore)",
+    "email": "string (valid email)",
+    "password": "string (min 8 chars, requires uppercase, lowercase, number, special char)"
+}
 ```
 
-Then list the tables:
+#### Login
+- **URL**: `/api/users/login`
+- **Method**: `POST`
+- **Body**:
+```json
+{
+    "email": "string",
+    "password": "string"
+}
+```
+
+#### Logout
+- **URL**: `/api/users/logout`
+- **Method**: `POST`
+- **Headers**: `Cookie: token=<jwt_token>`
+
+### TODO Operations
+
+#### Get All TODOs
+- **URL**: `/api/todos`
+- **Method**: `GET`
+- **Headers**: `Cookie: token=<jwt_token>`
+- **Query Parameters**:
+  - `page`: number (default: 1)
+  - `pageSize`: number (default: 10, max: 100)
+
+#### Get TODO by ID
+- **URL**: `/api/todos/:id`
+- **Method**: `GET`
+- **Headers**: `Cookie: token=<jwt_token>`
+
+#### Create TODO
+- **URL**: `/api/todos`
+- **Method**: `POST`
+- **Headers**: `Cookie: token=<jwt_token>`
+- **Body**:
+```json
+{
+    "title": "string (3-100 chars)",
+    "status": "enum (pending, completed)"
+}
+```
+
+#### Update TODO
+- **URL**: `/api/todos/:id`
+- **Method**: `PUT`
+- **Headers**: `Cookie: token=<jwt_token>`
+- **Body**:
+```json
+{
+    "title": "string (3-100 chars, optional)",
+    "status": "enum (pending, completed, optional)"
+}
+```
+
+#### Delete TODO
+- **URL**: `/api/todos/:id`
+- **Method**: `DELETE`
+- **Headers**: `Cookie: token=<jwt_token>`
+
+## Response Format
+
+All responses follow this format:
+```json
+{
+    "success": boolean,
+    "data": any,
+    "error": {
+        "message": "string",
+        "details": any
+    },
+    "pagination": {
+        "currentPage": number,
+        "totalPages": number,
+        "pageSize": number,
+        "totalItems": number
+    }
+}
+```
+
+## Error Codes
+
+- `400`: Bad Request (validation errors)
+- `401`: Unauthorized (invalid/missing token)
+- `404`: Not Found
+- `500`: Internal Server Error
+
+## Database Schema
+
+### User
 ```sql
-\dt
+CREATE TABLE "user" (
+    "userId" SERIAL PRIMARY KEY,
+    "username" VARCHAR(20) UNIQUE NOT NULL,
+    "email" VARCHAR(255) UNIQUE NOT NULL,
+    "password" VARCHAR(255) NOT NULL,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-## 🐛 Troubleshooting
+### Todo
+```sql
+CREATE TABLE "todo" (
+    "todoId" SERIAL PRIMARY KEY,
+    "title" VARCHAR(100) NOT NULL,
+    "status" VARCHAR(20) DEFAULT 'pending',
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "userId" INTEGER REFERENCES "user"("userId")
+);
+```
 
-### Common Issues
+## Development
 
-1. **Container Not Running**
-   ```bash
-   sudo docker ps
-   sudo docker-compose up -d
-   ```
+### Available Scripts
 
-2. **Migration Generation Fails**
-   - Check container logs: `sudo docker-compose logs -f backend`
-   - Ensure database is running: `sudo docker ps | grep todo-db`
-   - Verify environment variables in `.env`
+- `npm run dev`: Start development server
+- `npm run build`: Build TypeScript files
+- `npm run start`: Start production server
+- `npm run typeorm`: Run TypeORM CLI
+- `npm run migration:generate`: Generate new migration
+- `npm run migration:run`: Run pending migrations
+- `npm run migration:revert`: Revert last migration
 
-3. **Migration Run Fails**
-   - Check if migration file exists: `sudo docker exec -it todo-backend ls -la /app/src/migrations/`
-   - View database logs: `sudo docker-compose logs -f db`
+### Project Structure
 
-## 🔄 Useful Commands
-
-- Stop containers: `sudo docker-compose down`
-- Restart containers: `sudo docker-compose restart`
-- View logs: `sudo docker-compose logs -f`
-- Rebuild containers: `sudo docker-compose up -d --build` 
+```
+src/
+├── controllers/     # Route controllers
+├── entities/        # TypeORM entities
+├── interfaces/      # TypeScript interfaces
+├── middlewares/     # Express middlewares
+├── migrations/      # Database migrations
+├── routes/          # API routes
+├── data-source.ts   # TypeORM configuration
+└── server.ts        # Application entry point
+```
