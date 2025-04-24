@@ -1,8 +1,7 @@
 import express from "express";
-import todoRoutes from "./routes/todo.routes";
-import userRoutes from "./routes/user.routes";
 import { AppDataSource } from "./data-source";
-import { setupMiddleware } from "./middlewares/server.middleware";
+import routes from "./routes";
+import { setupMiddleware, errorHandler } from "./middlewares/server.middleware";
 
 const app = express();
 
@@ -10,18 +9,22 @@ const app = express();
 setupMiddleware(app);
 
 // Routes
-app.use("/api/todos", todoRoutes);
-app.use("/api/auth", userRoutes);
+app.use("/api", routes);
+
+// Error handling middleware
+app.use(errorHandler);
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 // Initialize database connection
 AppDataSource.initialize()
     .then(() => {
-        console.log("Database connected");
-        
-        // Start server
-        const PORT = process.env.PORT || 3000;
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
+        console.log("Database connected successfully");
     })
-    .catch((error) => console.log("Error connecting to database:", error));
+    .catch((error) => {
+        console.error("Error connecting to database:", error);
+    });
